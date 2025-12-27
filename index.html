@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YYC Transit Dash</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; background: #121212; color: white; padding: 20px; }
+        .stop-card { background: #1e1e1e; border-radius: 12px; padding: 16px; margin-bottom: 12px; border-left: 6px solid #ff0000; display: flex; justify-content: space-between; align-items: center; }
+        .route-num { font-size: 26px; font-weight: 900; color: #ff0000; margin-right: 15px; }
+        .details { flex-grow: 1; }
+        .dest { font-size: 14px; opacity: 0.8; }
+        .time { font-size: 18px; font-weight: 700; }
+        .status-msg { text-align: center; color: #888; margin-top: 20px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <h2>YYC Transit Dash</h2>
+    <div id="transit-list">Attempting connection...</div>
+    <div id="status-msg">Stop ID: 6015</div>
+
+    <script>
+        const STOP_ID = '6015';
+        const API_URL = `https://data.calgary.ca/resource/m7v3-pkh6.json?stop_id=${STOP_ID}&$limit=5`;
+
+        function fetchTransit() {
+            const listDiv = document.getElementById('transit-list');
+            
+            // We use 'allorigins' with a different method that is harder for Android to block
+            fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(API_URL)}`)
+                .then(response => {
+                    if (response.ok) return response.json();
+                    throw new Error('Network error');
+                })
+                .then(data => {
+                    const transitData = JSON.parse(data.contents);
+                    render(transitData);
+                })
+                .catch(err => {
+                    // EMERGENCY FALLBACK: If the proxy fails, we show the link so you can tap it
+                    listDiv.innerHTML = `
+                        <div style="background:#331111; padding:15px; border-radius:10px; border:1px solid red;">
+                            <p>QuickEdit blocked the request.</p>
+                            <a href="${API_URL}" target="_blank" style="color:red; font-weight:bold;">Tap here to verify data is online</a>
+                        </div>`;
+                });
+        }
+
+        function render(data) {
+            if (!data || data.length === 0) {
+                document.getElementById('transit-list').innerHTML = "No upcoming trips found.";
+                return;
+            }
+            let html = '';
+            data.forEach(trip => {
+                html += `
+                    <div class="stop-card">
+                        <div class="route-num">${trip.route_short_name}</div>
+                        <div class="details">
+                            <div class="dest">${trip.trip_headsign}</div>
+                            <div class="time">${trip.departure_time.substring(0,5)}</div>
+                        </div>
+                    </div>`;
+            });
+            document.getElementById('transit-list').innerHTML = html;
+        }
+
+        fetchTransit();
+    </script>
+</body>
+</html>
