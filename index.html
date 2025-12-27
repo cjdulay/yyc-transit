@@ -8,64 +8,56 @@
         body { font-family: -apple-system, sans-serif; background: #121212; color: white; padding: 20px; }
         .stop-card { background: #1e1e1e; border-radius: 12px; padding: 16px; margin-bottom: 12px; border-left: 6px solid #ff0000; display: flex; justify-content: space-between; align-items: center; }
         .route-num { font-size: 26px; font-weight: 900; color: #ff0000; margin-right: 15px; }
-        .details { flex-grow: 1; }
-        .dest { font-size: 14px; opacity: 0.8; }
         .time { font-size: 18px; font-weight: 700; }
-        .status-msg { text-align: center; color: #888; margin-top: 20px; font-size: 14px; }
+        .btn { background: #333; color: white; border: none; width: 100%; padding: 15px; border-radius: 10px; margin-top: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
     <h2>YYC Transit Dash</h2>
-    <div id="transit-list">Attempting connection...</div>
-    <div id="status-msg">Stop ID: 6015</div>
+    <div id="transit-list">Connecting to Calgary Transit...</div>
+    <button class="btn" onclick="loadTransitData()">🔄 Refresh</button>
 
     <script>
-        const STOP_ID = '6015';
-        const API_URL = `https://data.calgary.ca/resource/m7v3-pkh6.json?stop_id=${STOP_ID}&$limit=5`;
+        const STOP_ID = '6015'; // City Hall Station
 
-        function fetchTransit() {
+        // 1. The Callback Function: This is what runs when the data arrives
+        function handleTransitData(data) {
             const listDiv = document.getElementById('transit-list');
-            
-            // We use 'allorigins' with a different method that is harder for Android to block
-            fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(API_URL)}`)
-                .then(response => {
-                    if (response.ok) return response.json();
-                    throw new Error('Network error');
-                })
-                .then(data => {
-                    const transitData = JSON.parse(data.contents);
-                    render(transitData);
-                })
-                .catch(err => {
-                    // EMERGENCY FALLBACK: If the proxy fails, we show the link so you can tap it
-                    listDiv.innerHTML = `
-                        <div style="background:#331111; padding:15px; border-radius:10px; border:1px solid red;">
-                            <p>QuickEdit blocked the request.</p>
-                            <a href="${API_URL}" target="_blank" style="color:red; font-weight:bold;">Tap here to verify data is online</a>
-                        </div>`;
-                });
-        }
-
-        function render(data) {
             if (!data || data.length === 0) {
-                document.getElementById('transit-list').innerHTML = "No upcoming trips found.";
+                listDiv.innerHTML = "No upcoming trips found.";
                 return;
             }
+
             let html = '';
-            data.forEach(trip => {
+            data.slice(0, 5).forEach(trip => {
                 html += `
                     <div class="stop-card">
                         <div class="route-num">${trip.route_short_name}</div>
-                        <div class="details">
-                            <div class="dest">${trip.trip_headsign}</div>
+                        <div style="flex-grow:1">
+                            <div style="font-size:14px; opacity:0.8;">${trip.trip_headsign}</div>
                             <div class="time">${trip.departure_time.substring(0,5)}</div>
                         </div>
                     </div>`;
             });
-            document.getElementById('transit-list').innerHTML = html;
+            listDiv.innerHTML = html;
         }
 
-        fetchTransit();
+        // 2. The JSONP Request: Disguising the data request as a script
+        function loadTransitData() {
+            // Remove old script if it exists
+            const oldScript = document.getElementById('jsonp-request');
+            if (oldScript) oldScript.remove();
+
+            const script = document.createElement('script');
+            script.id = 'jsonp-request';
+            // We add $jsonp=handleTransitData to tell Socrata to wrap the JSON in our function
+            script.src = `https://data.calgary.ca/resource/m7v3-pkh6.json?stop_id=${STOP_ID}&$limit=5&$jsonp=handleTransitData`;
+            
+            document.body.appendChild(script);
+        }
+
+        // Initial load
+        loadTransitData();
     </script>
 </body>
 </html>
